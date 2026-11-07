@@ -15,6 +15,12 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('library.books.index')" :active="request()->routeIs('library.books.*')">
+                        📚 {{ __('Katalog Buku') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('library.borrowings.index')" :active="request()->routeIs('library.borrowings.*')">
+                        🔄 {{ __('Sirkulasi Peminjaman') }}
+                    </x-nav-link>
                 </div>
             </div>
 

@@ -27,9 +27,18 @@ class BookController extends Controller
 
         $books = $query->paginate(15);
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $books
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $books
+            ]);
+        }
+
+        $categories = \Modules\Catalog\Models\Category::all();
+
+        return view('library.books.index', [
+            'books' => $books,
+            'categories' => $categories
         ]);
     }
 

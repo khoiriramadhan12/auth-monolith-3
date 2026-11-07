@@ -25,9 +25,20 @@ class BorrowingController extends Controller
 
         $borrowings = $query->paginate(15);
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $borrowings
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $borrowings
+            ]);
+        }
+
+        $members = \Modules\Membership\Models\Member::all();
+        $books = \Modules\Catalog\Models\Book::all();
+
+        return view('library.borrowings.index', [
+            'borrowings' => $borrowings,
+            'members' => $members,
+            'books' => $books
         ]);
     }
 
@@ -45,31 +56,43 @@ class BorrowingController extends Controller
     {
         $validated = $request->validate([
             'member_id' => 'required|integer',
-            'items' => 'required|array|min:1',
-            'items.*.book_id' => 'required|integer',
-            'items.*.quantity' => 'nullable|integer|min:1',
+            'book_id' => 'nullable|integer',
+            'items' => 'nullable|array',
             'borrow_days' => 'nullable|integer|min:1|max:30',
             'notes' => 'nullable|string',
         ]);
 
+        $items = $validated['items'] ?? [];
+        if (empty($items) && !empty($validated['book_id'])) {
+            $items = [['book_id' => $validated['book_id'], 'quantity' => 1]];
+        }
+
         try {
             $borrowing = $this->borrowingService->borrowBooks(
                 $validated['member_id'],
-                $validated['items'],
+                $items,
                 $validated['borrow_days'] ?? 7,
                 $validated['notes'] ?? null
             );
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Peminjaman buku berhasil diproses.',
-                'data' => $borrowing
-            ], 201);
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Peminjaman buku berhasil diproses.',
+                    'data' => $borrowing
+                ], 201);
+            }
+
+            return redirect()->route('library.borrowings.index')->with('success', "Peminjaman dengan kode {$borrowing->borrow_code} berhasil dibuat!");
         } catch (Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 422);
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage()
+                ], 422);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage());
         }
     }
 
@@ -82,16 +105,24 @@ class BorrowingController extends Controller
         try {
             $borrowing = $this->borrowingService->returnBooks($id, $validated['return_date'] ?? null);
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Buku berhasil dikembalikan.',
-                'data' => $borrowing
-            ]);
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Buku berhasil dikembalikan.',
+                    'data' => $borrowing
+                ]);
+            }
+
+            return redirect()->route('library.borrowings.index')->with('success', "Buku berhasil dikembalikan.");
         } catch (Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 422);
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage()
+                ], 422);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage());
         }
     }
 
